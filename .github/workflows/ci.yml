@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Exact commit this app is built against; bump after `bun exact.mjs update`.
+  EXACT_REF: c9019c14f8144c134ccaa8abe0714511dd45a943
+  EXACT: ${{ github.workspace }}/exact
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+
+      - uses: actions/checkout@v4
+        with:
+          repository: expo/exact
+          ref: ${{ env.EXACT_REF }}
+          path: exact
+
+      - name: Rust (exact's rust-toolchain.toml)
+        working-directory: exact
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: exact
+          cache-on-failure: true
+
+      - name: Exact's Bun dependencies
+        id: deps
+        working-directory: exact
+        run: bun install --frozen-lockfile
+
+      # Both checks run even if the other fails, so one run reports everything.
+      - name: fmt
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        working-directory: app
+        run: bun exact.mjs contract fmt --check app.contract
+
+      - name: lint (contract build + app.ts typecheck)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        working-directory: app
+        run: bun exact.mjs contract build app.contract
