@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../cli/exact/scripts/app.schema.json",
+  "name": "Flashcards",
+  "short_name": "Flashcards",
+  "id": "com.assanee.flashcard",
+  "start_url": "/",
+  "display": "standalone",
+  "app": {
+    "id": "com.assanee.flashcard",
+    "name": "Flashcards"
+  },
+  "host": {
+    "web": {},
+    "ios": {
+      "minimumOS": "17.0",
+      "deviceFamily": [
+        "iphone",
+        "ipad"
+      ]
+    }
+  },
+  "deploy": {
+    "store": {
+      "web": "0",
+      "ios": "0"
+    }
+  }
+}

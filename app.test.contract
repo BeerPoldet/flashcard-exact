@@ -1,0 +1,27 @@
+test "the greeting loads"
+  expect tree has "root"
+  expect text "greeting" == "Hello from Flashcard Exact."
+
+test "the plus button opens the sheet, close dismisses it"
+  tap "add"
+  clock settle
+  type "title" "Trait"
+  type "body" "Shared behaviour."
+  expect state draftTitle == "Trait"
+  expect state draftBody == "Shared behaviour."
+  tap "close"
+  clock settle
+  expect tree missing "title"
+
+test "save adds the card and closes the sheet"
+  tap "add"
+  clock settle
+  expect disabled "save"
+  type "title" "Trait"
+  expect disabled "save"
+  type "body" "Shared behaviour."
+  expect enabled "save"
+  tap "save"
+  clock settle
+  expect tree missing "title"
+  expect tree has "card-3"
