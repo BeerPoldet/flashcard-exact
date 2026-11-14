@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: contract-fmt
+        name: contract fmt
+        entry: bun exact.mjs contract fmt app.contract
+        language: system
+        files: ^app\.contract$
+        pass_filenames: false
+      - id: contract-build
+        name: contract build (lint + app.ts typecheck)
+        entry: bun exact.mjs contract build app.contract
+        language: system
+        files: ^(app\.contract|app\.ts|app\.json)$
+        pass_filenames: false
