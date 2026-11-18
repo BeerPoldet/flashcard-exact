@@ -13,7 +13,6 @@ concurrency:
 env:
   # Exact commit this app is built against; bump after `bun exact.mjs update`.
   EXACT_REF: c9019c14f8144c134ccaa8abe0714511dd45a943
-  EXACT: ${{ github.workspace }}/exact
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
 
@@ -32,10 +31,15 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    # Same layout as a developer's machine: the app and Exact side by side, so
+    # the committed `../exact` paths (exact.mjs, Cargo.toml) resolve unchanged.
+    defaults:
+      run:
+        working-directory: flashcard-exact
     steps:
       - uses: actions/checkout@v7
         with:
-          path: app
+          path: flashcard-exact
 
       - uses: actions/checkout@v7
         with:
@@ -43,8 +47,7 @@ jobs:
           ref: ${{ env.EXACT_REF }}
           path: exact
 
-      - name: Rust (exact's rust-toolchain.toml)
-        working-directory: exact
+      - name: Rust (app's rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
 
       - uses: oven-sh/setup-bun@v2
@@ -53,21 +56,38 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: exact
+          workspaces: flashcard-exact -> target
+          key: ${{ env.EXACT_REF }}
           cache-on-failure: true
 
       - name: Exact's Bun dependencies
-        id: deps
         working-directory: exact
         run: bun install --frozen-lockfile
 
-      # Both checks run even if the other fails, so one run reports everything.
-      - name: fmt
+      - name: Cargo dependencies
+        id: deps
+        run: cargo fetch --locked
+
+      # Every check runs once setup succeeded, even if an earlier check failed,
+      # so one run reports everything.
+      - name: contract fmt
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
-        working-directory: app
         run: bun exact.mjs contract fmt --check app.contract
 
-      - name: lint (contract build)
+      - name: contract build (lint)
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
-        working-directory: app
         run: bun exact.mjs contract build app.contract
+
+      - name: cargo fmt
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: cargo fmt --all --check
+
+      # flashcard-apple is the iOS/macOS host crate; it is not checked on Linux.
+      - name: cargo clippy
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: cargo clippy --locked --offline --workspace --exclude flashcard-apple -- -D warnings
+
+      # What iOS runs when the dev loop replaces the Rust module.
+      - name: cargo check logic (wasm32)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: cargo check --locked --offline -p flashcard-logic --target wasm32-unknown-unknown

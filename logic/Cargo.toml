@@ -12,4 +12,4 @@ bench = false
 
 [dependencies]
 flashcard-data = { path = "../data" }
-exact-logic-abi = { path = "../../../../cli/exact/logic/abi" }
+exact-logic-abi = { path = "../../exact/logic/abi" }

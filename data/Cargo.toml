@@ -13,5 +13,5 @@ test = false
 bench = false
 
 [dependencies]
-exact-plan = { path = "../../../../cli/exact/plan" }
-exact-runner = { path = "../../../../cli/exact/runner" }
+exact-plan = { path = "../../exact/plan" }
+exact-runner = { path = "../../exact/runner" }

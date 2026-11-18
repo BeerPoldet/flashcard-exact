@@ -20,12 +20,12 @@ test = false
 bench = false
 
 [dependencies]
-exact-logic = { path = "../../../../cli/exact/logic" }
-exact-web = { path = "../../../../cli/exact/host/web" }
-exact-web-capabilities = { path = "../../../../cli/exact/host/web-capabilities" }
+exact-logic = { path = "../../exact/logic" }
+exact-web = { path = "../../exact/host/web" }
+exact-web-capabilities = { path = "../../exact/host/web-capabilities" }
 flashcard-data = { path = "../data" }
 
 [build-dependencies]
-contract = { path = "../../../../cli/exact/contract/cli" }
-exact-bake = { path = "../../../../cli/exact/bake" }
+contract = { path = "../../exact/contract/cli" }
+exact-bake = { path = "../../exact/bake" }
 flashcard-data = { path = "../data" }

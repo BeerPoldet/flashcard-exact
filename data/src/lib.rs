@@ -17,7 +17,7 @@ fn greeting(args: &[Value]) -> Result<Value, DataError> {
     .and_then(Value::as_str)
     .ok_or_else(|| DataError::BadArguments("greeting(name: string)".into()))?;
   Ok(Value::record(vec![Value::str(&format!(
-    "Hello from {name}."
+    "Hey from {name}."
   ))]))
 }
 
