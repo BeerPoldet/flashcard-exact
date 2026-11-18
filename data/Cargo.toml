@@ -1,0 +1,17 @@
+[package]
+name = "flashcard-data"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "flashcard's data"
+publish = false
+
+[lib]
+name = "flashcard_data"
+crate-type = ["rlib"]
+test = false
+bench = false
+
+[dependencies]
+exact-plan = { path = "../../exact/plan" }
+exact-runner = { path = "../../exact/runner" }
