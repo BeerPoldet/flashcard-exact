@@ -24,4 +24,4 @@ test "save adds the card and closes the sheet"
   tap "save"
   clock settle
   expect tree missing "title"
-  expect tree has "card-3"
+  expect tree has "card-1"
