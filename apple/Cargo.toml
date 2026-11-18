@@ -1,0 +1,27 @@
+[package]
+name = "flashcard-apple"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "flashcard on apple"
+publish = false
+build = "build.rs"
+
+[lib]
+name = "flashcard_apple"
+crate-type = ["rlib"]
+test = false
+bench = false
+
+[dependencies]
+ibex2-sqlite = { path = "../../../../cli/exact/vendor/ibex/crates/ibex2-sqlite" }
+exact-logic = { path = "../../../../cli/exact/logic" }
+exact-apple = { path = "../../../../cli/exact/host/apple" }
+exact-apple-update = { path = "../../../../cli/exact/host/apple-update" }
+flashcard-data = { path = "../data" }
+
+[build-dependencies]
+contract = { path = "../../../../cli/exact/contract/cli" }
+exact-bake = { path = "../../../../cli/exact/bake" }
+flashcard-data = { path = "../data" }
+

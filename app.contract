@@ -64,6 +64,8 @@ component FlashcardExact
               min-height=0
               -exact-scroll-edge-effect="soft"
               section
+                column gap=4
+                  text greeting.text font-weight=600
                 for flashcard in flashcards key=flashcard.id
                   row delete=remove(flashcard.id) testId=`card-${flashcard.id}`
                     column gap=4

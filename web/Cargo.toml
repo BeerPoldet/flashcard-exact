@@ -1,0 +1,31 @@
+[package]
+name = "flashcard-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "flashcard on the web"
+publish = false
+build = "build.rs"
+
+[lib]
+name = "flashcard_web"
+crate-type = ["cdylib", "rlib"]
+test = false
+bench = false
+
+[[bin]]
+name = "flashcard-dev"
+path = "src/bin/flashcard-dev.rs"
+test = false
+bench = false
+
+[dependencies]
+exact-logic = { path = "../../../../cli/exact/logic" }
+exact-web = { path = "../../../../cli/exact/host/web" }
+exact-web-capabilities = { path = "../../../../cli/exact/host/web-capabilities" }
+flashcard-data = { path = "../data" }
+
+[build-dependencies]
+contract = { path = "../../../../cli/exact/contract/cli" }
+exact-bake = { path = "../../../../cli/exact/bake" }
+flashcard-data = { path = "../data" }

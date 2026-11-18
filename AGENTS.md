@@ -1,5 +1,5 @@
 <!-- exact:begin (exact new writes this block; bun exact.mjs update rewrites it) -->
-# flashcard-exact: an Exact app
+# flashcard: an Exact app
 
 `app.contract` is the view, `app.ts` the data module, `app.test.contract` the tests, `app.json`
 the manifest: set `app.name` and `app.id` before building. The app uses Exact at
@@ -13,12 +13,12 @@ section. Run `bun exact.mjs verify` when the features work, and `verify ios|andr
 phone app. When an iPhone app is ready to try, run `bun exact.mjs share` and send its link;
 repeat for each change the person should see. `bun exact.mjs help` lists the verbs, including
 app.json's `"commands"`.
-`bun exact.mjs update` refreshes files. Native verbs (`ios`, `mac`, `linux`, `android`, `windows`)
-name their platform in app.json on first use and build in a generated workspace;
-`update --without <platform>` stops shipping it.
+`bun exact.mjs update` refreshes files. `bun exact.mjs lock` repairs Cargo lock drift.
+`bun exact.mjs update --without linux` stops shipping Linux.
 `bun ../../../cli/exact/scripts/exact.mjs setup --check` names what a native build lacks.
 
-Generated, so don't edit: `exact.mjs` and this block.
+Generated, so don't edit: `exact.mjs`, `rust-toolchain.toml`, `.cargo/config.toml`,
+`Cargo.toml`'s `[patch.crates-io]` and this block.
 
 ## Feedback (required)
 

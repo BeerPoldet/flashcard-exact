@@ -9,6 +9,11 @@
     "id": "com.assanee.flashcard",
     "name": "Flashcards"
   },
+  "rust": {
+    "module": {
+      "package": "flashcard-logic"
+    }
+  },
   "host": {
     "web": {},
     "ios": {
