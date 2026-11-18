@@ -4,27 +4,83 @@
 #![deny(missing_docs)]
 
 use exact_plan::Value;
-use exact_runner::{DataError, DataSource};
+use exact_runner::{failure::FailureCode, Answer, DataError, DataSource, Outcome, Request, Store};
+use serde::Deserialize;
+
+/// The flashcards server.
+const API: &str = "http://localhost:3000?limit=10&after=1";
 
 /// The app's data source.
 #[derive(Default, Clone, Copy)]
 pub struct FlashcardData;
 
-/// `greeting(name)`: a `shape Greeting` (fields in declared order: `text`).
-fn greeting(args: &[Value]) -> Result<Value, DataError> {
-  let name = args
-    .first()
-    .and_then(Value::as_str)
-    .ok_or_else(|| DataError::BadArguments("greeting(name: string)".into()))?;
-  Ok(Value::record(vec![Value::str(&format!(
-    "Hey from {name}."
-  ))]))
+#[derive(Deserialize)]
+struct Page {
+  data: Vec<Flashcard>,
+}
+
+#[derive(Deserialize)]
+struct Flashcard {
+  id: f64,
+  title: String,
+  content: String,
+}
+
+impl Flashcard {
+  fn to_value(&self) -> Value {
+    Value::record(vec![
+      Value::Number(self.id),
+      Value::str(&self.title),
+      Value::str(&self.content),
+    ])
+  }
 }
 
 impl DataSource for FlashcardData {
-  fn query(&mut self, source: &str, args: &[Value]) -> Result<Value, DataError> {
+  fn query(&mut self, source: &str, _args: &[Value]) -> Result<Value, DataError> {
     match source {
-      "greeting" => greeting(args),
+      "loadFlashcards" => Err(DataError::DeferredAtBake {
+        message: "flashcards are fetched at launch".into(),
+        warning: false,
+      }),
+      _ => Err(DataError::UnknownSource(source.into())),
+    }
+  }
+
+  fn answer(&mut self, _: &mut Store, source: &str, args: &[Value]) -> Result<Answer, DataError> {
+    match source {
+      // No `timeout_ms`: Exact refuses a request deadline across the Rust
+      // module seam (web, and the dev loop's live-replaced module).
+      "loadFlashcards" => Ok(Answer::Later(Request::get(&format!("{API}/flashcards")))),
+      _ => self.query(source, args).map(Answer::Now),
+    }
+  }
+
+  fn parse(
+    &mut self,
+    _: &mut Store,
+    source: &str,
+    _: &[Value],
+    outcome: Outcome,
+  ) -> Result<Answer, DataError> {
+    match (source, outcome) {
+      ("loadFlashcards", Outcome::Response(response)) if (200..300).contains(&response.status) => {
+        let page: Page = serde_json::from_slice(&response.body)
+          .map_err(|e| DataError::Failed(FailureCode::Shape, e.to_string(), String::new()))?;
+        Ok(Answer::Now(Value::list(
+          page.data.iter().map(Flashcard::to_value).collect(),
+        )))
+      }
+      ("loadFlashcards", Outcome::Response(response)) => Err(DataError::Failed(
+        FailureCode::Error,
+        format!("HTTP {}", response.status),
+        format!("HTTP_{}", response.status),
+      )),
+      ("loadFlashcards", Outcome::Failed { kind, message }) => Err(DataError::Failed(
+        FailureCode::of_kind(kind),
+        message,
+        String::new(),
+      )),
       _ => Err(DataError::UnknownSource(source.into())),
     }
   }
@@ -35,6 +91,10 @@ impl DataSource for FlashcardData {
   fn app_id(&self) -> &str {
     "com.assanee.flashcard"
   }
-  // `grants` keeps its default (none, as `app.ts`'s empty `grants`). Add it
-  // with `net.fetch …` once a source fetches; the module and binary must agree.
+
+  /// What the app may reach; the module and binary must agree.
+  #[allow(clippy::unnecessary_literal_bound)]
+  fn grants(&self) -> &str {
+    "net.fetch http://localhost:3000"
+  }
 }

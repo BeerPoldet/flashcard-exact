@@ -1,9 +1,6 @@
 // Flashcard Exact: the view. app.ts answers what it asks for. Colours, fonts,
 // sizes and the safe area are left unsaid, so each platform supplies its own:
 // the header is the navigation bar, its heading the title, its button a bar item.
-shape Greeting
-  text: string
-
 shape Flashcard
   id: number
   title: string
@@ -14,14 +11,27 @@ routes nav
     add "/add"
 
 component FlashcardExact
-  resource greeting = greeting("Flashcard Exact") as shape Greeting
-  state flashcards = [
-    Flashcard(id=1, title="Borrow checker", body="Multiple read borrowing or one write borrowing."),
-    Flashcard(id=2, title="Enum", body="Union type that an enum can be one value at a time."),
-  ]
+  state flashcards = []
+  mutation fetched as shape Flashcard[] then updateFlashcards
+  task load mount
+    after(1, fetch)
+  action fetch
+    send fetched = loadFlashcards()
+  action updateFlashcards
+    flashcards = match fetched { case some(cards) => cards, case none => flashcards }
+  state loadError = ""
   state draftTitle = ""
   state draftBody = ""
   derive canSave = draftTitle.trim() != "" && draftBody.trim() != ""
+  task loadFailed when failed(fetched)
+    after(1, showLoadError)
+  action showLoadError
+    let code = match failure(fetched) {
+      case some(f) => f.code,
+      case none => "",
+    }
+    loadError = code == "offline" ? "Can't reach the server." : code == "timeout" ? "The server took too long to respond." : "Couldn't load flashcards."
+    showModal("load-error")
   action openAdd
     draftTitle = ""
     draftBody = ""
@@ -34,7 +44,7 @@ component FlashcardExact
     nav = back(nav)
   action save
     if canSave
-      let nextId = match flashcards.at(-1) { case some(last) => last.id + 1, case none => 1 }
+      let nextId = match sortBy(flashcards, c => c.id).at(-1) { case some(last) => last.id + 1, case none => 1 }
       flashcards = flashcards.concat([Flashcard(id=nextId, title=draftTitle.trim(), body=draftBody.trim())])
       nav = back(nav)
   action remove(id: number)
@@ -64,8 +74,6 @@ component FlashcardExact
               min-height=0
               -exact-scroll-edge-effect="soft"
               section
-                column gap=4
-                  text greeting.text font-weight=600 testId="greeting"
                 for flashcard in flashcards key=flashcard.id
                   row delete=remove(flashcard.id) testId=`card-${flashcard.id}`
                     column gap=4
@@ -75,6 +83,10 @@ component FlashcardExact
               button destructive=true popovertarget="menu" popovertargetaction="hide"
                 image "symbol:delete"
                 text "Delete"
+            dialog id="load-error" role="alertdialog" aria-label="Couldn't Load Flashcards"
+              text loadError testId="load-error-message"
+              button commandfor="load-error" command="close" testId="load-error-ok"
+                text "OK"
         if e.name == "add"
           column navigationKey=`${e.id}`
             navigationPresentation="modal"
