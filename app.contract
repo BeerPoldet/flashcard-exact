@@ -19,9 +19,19 @@ component FlashcardExact
     send fetched = loadFlashcards()
   action updateFlashcards
     flashcards = match fetched { case some(cards) => cards, case none => flashcards }
+  state loadError = ""
   state draftTitle = ""
   state draftBody = ""
   derive canSave = draftTitle.trim() != "" && draftBody.trim() != ""
+  task loadFailed when failed(fetched)
+    after(1, showLoadError)
+  action showLoadError
+    let code = match failure(fetched) {
+      case some(f) => f.code,
+      case none => "",
+    }
+    loadError = code == "offline" ? "Can't reach the server." : code == "timeout" ? "The server took too long to respond." : "Couldn't load flashcards."
+    showModal("load-error")
   action openAdd
     draftTitle = ""
     draftBody = ""
@@ -73,6 +83,10 @@ component FlashcardExact
               button destructive=true popovertarget="menu" popovertargetaction="hide"
                 image "symbol:delete"
                 text "Delete"
+            dialog id="load-error" role="alertdialog" aria-label="Couldn't Load Flashcards"
+              text loadError testId="load-error-message"
+              button commandfor="load-error" command="close" testId="load-error-ok"
+                text "OK"
         if e.name == "add"
           column navigationKey=`${e.id}`
             navigationPresentation="modal"

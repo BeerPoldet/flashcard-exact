@@ -4,11 +4,11 @@
 #![deny(missing_docs)]
 
 use exact_plan::Value;
-use exact_runner::{Answer, DataError, DataSource, Outcome, Request, Store};
+use exact_runner::{failure::FailureCode, Answer, DataError, DataSource, Outcome, Request, Store};
 use serde::Deserialize;
 
 /// The flashcards server.
-const API: &str = "http://localhost:3000";
+const API: &str = "http://localhost:3000?limit=10&after=1";
 
 /// The app's data source.
 #[derive(Default, Clone, Copy)]
@@ -49,6 +49,8 @@ impl DataSource for FlashcardData {
 
   fn answer(&mut self, _: &mut Store, source: &str, args: &[Value]) -> Result<Answer, DataError> {
     match source {
+      // No `timeout_ms`: Exact refuses a request deadline across the Rust
+      // module seam (web, and the dev loop's live-replaced module).
       "loadFlashcards" => Ok(Answer::Later(Request::get(&format!("{API}/flashcards")))),
       _ => self.query(source, args).map(Answer::Now),
     }
@@ -62,12 +64,23 @@ impl DataSource for FlashcardData {
     outcome: Outcome,
   ) -> Result<Answer, DataError> {
     match (source, outcome) {
-      ("loadFlashcards", Outcome::Response(response)) => {
-        let page: Page = serde_json::from_slice(&response.body).unwrap_or(Page { data: vec![] });
+      ("loadFlashcards", Outcome::Response(response)) if (200..300).contains(&response.status) => {
+        let page: Page = serde_json::from_slice(&response.body)
+          .map_err(|e| DataError::Failed(FailureCode::Shape, e.to_string(), String::new()))?;
         Ok(Answer::Now(Value::list(
           page.data.iter().map(Flashcard::to_value).collect(),
         )))
       }
+      ("loadFlashcards", Outcome::Response(response)) => Err(DataError::Failed(
+        FailureCode::Error,
+        format!("HTTP {}", response.status),
+        format!("HTTP_{}", response.status),
+      )),
+      ("loadFlashcards", Outcome::Failed { kind, message }) => Err(DataError::Failed(
+        FailureCode::of_kind(kind),
+        message,
+        String::new(),
+      )),
       _ => Err(DataError::UnknownSource(source.into())),
     }
   }

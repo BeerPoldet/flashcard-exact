@@ -3,6 +3,12 @@ test "the greeting loads"
   expect text "greeting" == "Hello from Flashcard Exact."
 
 test "the plus button opens the sheet, close dismisses it"
+  fail fetch "http://localhost:3000"
+  clock + 1
+  clock data
+  clock settle
+  tap "load-error-ok"
+  clock settle
   tap "add"
   clock settle
   type "title" "Trait"
@@ -14,6 +20,12 @@ test "the plus button opens the sheet, close dismisses it"
   expect tree missing "title"
 
 test "save adds the card and closes the sheet"
+  fail fetch "http://localhost:3000"
+  clock + 1
+  clock data
+  clock settle
+  tap "load-error-ok"
+  clock settle
   tap "add"
   clock settle
   expect disabled "save"
@@ -25,3 +37,14 @@ test "save adds the card and closes the sheet"
   clock settle
   expect tree missing "title"
   expect tree has "card-1"
+
+test "a failed launch fetch shows an alert"
+  fail fetch "http://localhost:3000"
+  clock + 1
+  clock data
+  clock settle
+  // iOS reports the failure as `offline`, the web as `error`.
+  expect state loadError in "Can't reach the server." "Couldn't load flashcards."
+  tap "load-error-ok"
+  clock settle
+  expect tree has "add"
