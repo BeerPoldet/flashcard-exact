@@ -67,7 +67,7 @@ jobs:
         working-directory: app
         run: bun exact.mjs contract fmt --check app.contract
 
-      - name: lint (contract build + app.ts typecheck)
+      - name: lint (contract build)
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         working-directory: app
         run: bun exact.mjs contract build app.contract
