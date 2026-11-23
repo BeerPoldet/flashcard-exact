@@ -7,8 +7,8 @@ use exact_plan::Value;
 use exact_runner::{failure::FailureCode, Answer, DataError, DataSource, Outcome, Request, Store};
 use serde::Deserialize;
 
-/// The flashcards server.
-const API: &str = "http://localhost:3000?limit=10&after=1";
+// `API` and `GRANTS`, from `API_BASE_URL` (see build.rs).
+include!(concat!(env!("OUT_DIR"), "/api.rs"));
 
 /// The app's data source.
 #[derive(Default, Clone, Copy)]
@@ -51,7 +51,9 @@ impl DataSource for FlashcardData {
     match source {
       // No `timeout_ms`: Exact refuses a request deadline across the Rust
       // module seam (web, and the dev loop's live-replaced module).
-      "loadFlashcards" => Ok(Answer::Later(Request::get(&format!("{API}/flashcards")))),
+      "loadFlashcards" => Ok(Answer::Later(Request::get(&format!(
+        "{API}/flashcards?limit=10"
+      )))),
       _ => self.query(source, args).map(Answer::Now),
     }
   }
@@ -95,6 +97,6 @@ impl DataSource for FlashcardData {
   /// What the app may reach; the module and binary must agree.
   #[allow(clippy::unnecessary_literal_bound)]
   fn grants(&self) -> &str {
-    "net.fetch http://localhost:3000"
+    GRANTS
   }
 }
