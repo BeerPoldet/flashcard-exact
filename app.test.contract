@@ -43,6 +43,7 @@ test "a failed launch fetch shows an alert"
   clock + 1
   clock data
   clock settle
+  expect tree missing "loading"
   // iOS reports the failure as `offline`, the web as `error`.
   expect state loadError in "Can't reach the server." "Couldn't load flashcards."
   tap "load-error-ok"

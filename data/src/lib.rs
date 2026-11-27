@@ -6,6 +6,8 @@
 use exact_plan::Value;
 use exact_runner::{failure::FailureCode, Answer, DataError, DataSource, Outcome, Request, Store};
 use serde::Deserialize;
+use std::rc::Rc;
+use url::Url;
 
 // `API` and `GRANTS`, from `API_BASE_URL` (see build.rs).
 include!(concat!(env!("OUT_DIR"), "/api.rs"));
@@ -17,6 +19,19 @@ pub struct FlashcardData;
 #[derive(Deserialize)]
 struct Page {
   data: Vec<Flashcard>,
+  /// Cursor for the next page; absent, null or empty on the last.
+  after: Option<String>,
+}
+
+impl Page {
+  /// `FlashcardPage(cards, after)` in app.contract.
+  fn to_value(&self) -> Value {
+    let after = self.after.as_deref().filter(|a| !a.is_empty());
+    Value::record(vec![
+      Value::list(self.data.iter().map(Flashcard::to_value).collect()),
+      Value::Option(after.map(|a| Rc::new(Value::str(a)))),
+    ])
+  }
 }
 
 #[derive(Deserialize)]
@@ -36,10 +51,23 @@ impl Flashcard {
   }
 }
 
+/// `{API}/flashcards` with `query` appended, each pair percent-encoded.
+fn flashcards_url(query: &[(&str, &str)]) -> Result<String, DataError> {
+  let mut url = Url::parse(&format!("{API}/flashcards")).map_err(|e| {
+    DataError::Failed(
+      FailureCode::Error,
+      format!("API_BASE_URL: {e}"),
+      String::new(),
+    )
+  })?;
+  url.query_pairs_mut().extend_pairs(query);
+  Ok(url.into())
+}
+
 impl DataSource for FlashcardData {
   fn query(&mut self, source: &str, _args: &[Value]) -> Result<Value, DataError> {
     match source {
-      "loadFlashcards" => Err(DataError::DeferredAtBake {
+      "loadFlashcards" | "loadMoreFlashcards" => Err(DataError::DeferredAtBake {
         message: "flashcards are fetched at launch".into(),
         warning: false,
       }),
@@ -51,9 +79,16 @@ impl DataSource for FlashcardData {
     match source {
       // No `timeout_ms`: Exact refuses a request deadline across the Rust
       // module seam (web, and the dev loop's live-replaced module).
-      "loadFlashcards" => Ok(Answer::Later(Request::get(&format!(
-        "{API}/flashcards?limit=10"
-      )))),
+      "loadFlashcards" => Ok(Answer::Later(Request::get(&flashcards_url(&[(
+        "limit", "10",
+      )])?))),
+      // The cursor carries the first page's sort and order: send it alone.
+      "loadMoreFlashcards" => {
+        let after = args.first().and_then(Value::as_str).unwrap_or_default();
+        Ok(Answer::Later(Request::get(&flashcards_url(&[(
+          "after", after,
+        )])?)))
+      }
       _ => self.query(source, args).map(Answer::Now),
     }
   }
@@ -66,23 +101,23 @@ impl DataSource for FlashcardData {
     outcome: Outcome,
   ) -> Result<Answer, DataError> {
     match (source, outcome) {
-      ("loadFlashcards", Outcome::Response(response)) if (200..300).contains(&response.status) => {
+      ("loadFlashcards" | "loadMoreFlashcards", Outcome::Response(response))
+        if (200..300).contains(&response.status) =>
+      {
         let page: Page = serde_json::from_slice(&response.body)
           .map_err(|e| DataError::Failed(FailureCode::Shape, e.to_string(), String::new()))?;
-        Ok(Answer::Now(Value::list(
-          page.data.iter().map(Flashcard::to_value).collect(),
-        )))
+        Ok(Answer::Now(page.to_value()))
       }
-      ("loadFlashcards", Outcome::Response(response)) => Err(DataError::Failed(
-        FailureCode::Error,
-        format!("HTTP {}", response.status),
-        format!("HTTP_{}", response.status),
-      )),
-      ("loadFlashcards", Outcome::Failed { kind, message }) => Err(DataError::Failed(
-        FailureCode::of_kind(kind),
-        message,
-        String::new(),
-      )),
+      ("loadFlashcards" | "loadMoreFlashcards", Outcome::Response(response)) => {
+        Err(DataError::Failed(
+          FailureCode::Error,
+          format!("HTTP {}", response.status),
+          format!("HTTP_{}", response.status),
+        ))
+      }
+      ("loadFlashcards" | "loadMoreFlashcards", Outcome::Failed { kind, message }) => Err(
+        DataError::Failed(FailureCode::of_kind(kind), message, String::new()),
+      ),
       _ => Err(DataError::UnknownSource(source.into())),
     }
   }
