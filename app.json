@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../cli/exact/scripts/app.schema.json",
+  "$schema": "../exact/scripts/app.schema.json",
   "name": "Flashcards",
   "short_name": "Flashcards",
   "id": "com.assanee.flashcard",
@@ -8,6 +8,11 @@
   "app": {
     "id": "com.assanee.flashcard",
     "name": "Flashcards"
+  },
+  "rust": {
+    "module": {
+      "package": "flashcard-logic"
+    }
   },
   "host": {
     "web": {},

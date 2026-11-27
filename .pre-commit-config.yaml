@@ -12,8 +12,20 @@ repos:
         files: ^app\.contract$
         pass_filenames: false
       - id: contract-build
-        name: contract build (lint + app.ts typecheck)
+        name: contract build (lint)
         entry: bun exact.mjs contract build app.contract
         language: system
-        files: ^(app\.contract|app\.ts|app\.json)$
+        files: ^(app\.contract|app\.json)$
+        pass_filenames: false
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all
+        language: system
+        files: (\.rs|Cargo\.toml|rustfmt\.toml)$
+        pass_filenames: false
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --workspace -- -D warnings
+        language: system
+        files: (\.rs|Cargo\.toml|Cargo\.lock|app\.contract|app\.json)$
         pass_filenames: false

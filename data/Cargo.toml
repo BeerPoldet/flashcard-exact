@@ -1,0 +1,21 @@
+[package]
+name = "flashcard-data"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "flashcard's data"
+publish = false
+build = "build.rs"
+
+[lib]
+name = "flashcard_data"
+crate-type = ["rlib"]
+test = false
+bench = false
+
+[dependencies]
+exact-plan = { path = "../../exact/plan" }
+exact-runner = { path = "../../exact/runner" }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+url = "2.5"
