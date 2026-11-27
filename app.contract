@@ -6,19 +6,46 @@ shape Flashcard
   title: string
   body: string
 
+shape FlashcardPage
+  cards: Flashcard[]
+  after: option<string>
+
+fn loadMessage(code: string): string = code == "offline" ? "Can't reach the server." : code == "timeout" ? "The server took too long to respond." : "Couldn't load flashcards."
+
 routes nav
   home "/"
     add "/add"
 
 component FlashcardExact
   state flashcards = []
-  mutation fetched as shape Flashcard[] then updateFlashcards
+  state after: option<string> = none
+  state atEnd = false
+  mutation fetched as shape FlashcardPage then updateFlashcards
+  mutation more as shape FlashcardPage then appendFlashcards
   task load mount
     after(1, fetch)
   action fetch
     send fetched = loadFlashcards()
   action updateFlashcards
-    flashcards = match fetched { case some(cards) => cards, case none => flashcards }
+    flashcards = match fetched { case some(page) => page.cards, case none => flashcards }
+    after = match fetched { case some(page) => page.after, case none => after }
+  action appendFlashcards
+    flashcards = match more { case some(page) => flashcards.concat(page.cards), case none => flashcards }
+    after = match more { case some(page) => page.after, case none => after }
+  derive lastId = match flashcards.at(-1) { case some(c) => c.id, case none => -1 }
+  // The last card within 400pt of the bottom: time for the next page.
+  action seen(id: number, entry: IntersectionObserverEntry)
+    if id == lastId
+      atEnd = entry.isIntersecting
+  derive hasMore = match after { case some(c) => true, case none => false }
+  task next when atEnd && hasMore && not pending(fetched) && not pending(more) && not failed(more)
+    after(1, fetchMore)
+  action fetchMore
+    match after
+      case some(cursor)
+        send more = loadMoreFlashcards(cursor)
+      case none
+        atEnd = false
   state loadError = ""
   state draftTitle = ""
   state draftBody = ""
@@ -30,7 +57,17 @@ component FlashcardExact
       case some(f) => f.code,
       case none => "",
     }
-    loadError = code == "offline" ? "Can't reach the server." : code == "timeout" ? "The server took too long to respond." : "Couldn't load flashcards."
+    loadError = loadMessage(code)
+    showModal("load-error")
+  task moreFailed when failed(more)
+    after(1, showMoreError)
+  action showMoreError
+    let code = match failure(more) {
+      case some(f) => f.code,
+      case none => "",
+    }
+    atEnd = false
+    loadError = loadMessage(code)
     showModal("load-error")
   action openAdd
     draftTitle = ""
@@ -65,20 +102,38 @@ component FlashcardExact
             flex-direction="column"
             header display="flex" align-items="center"
               text "Flashcards" role="heading" aria-level=1 flex=1
-              button press=openAdd aria-label="Add flashcard" testId="add"
+              button press=openAdd disabled=pending(fetched) aria-label="Add flashcard" testId="add"
                 image "symbol:add"
             list id="content"
+              testId="list"
               appearance="auto"
               listStyle="inset-grouped"
               flex=1
               min-height=0
               -exact-scroll-edge-effect="soft"
+              refresh=fetch
+              refreshing=(pending(fetched) && flashcards.length > 0)
               section
                 for flashcard in flashcards key=flashcard.id
-                  row delete=remove(flashcard.id) testId=`card-${flashcard.id}`
+                  row delete=remove(flashcard.id)
+                    intersect=seen(flashcard.id)
+                    intersect-margin="0px 0px 400px 0px"
+                    testId=`card-${flashcard.id}`
                     column gap=4
                       text flashcard.title font-weight=600
                       text flashcard.body
+                footer
+                  text (pending(more) ? "Loading more…" : "") testId="footer"
+            if pending(fetched) && flashcards.length == 0
+              column position="absolute"
+                inset=0
+                display="flex"
+                align-items="center"
+                justify-content="center"
+                gap=8
+                testId="loading"
+                progress aria-label="Loading flashcards"
+                text "Loading" color="-exact-secondary-label"
             column id="menu" popover="auto" role="menu"
               button destructive=true popovertarget="menu" popovertargetaction="hide"
                 image "symbol:delete"
